@@ -86,6 +86,23 @@ tr.done-row .task-title{text-decoration:line-through}
 .overdue{color:#991b1b;font-weight:600}
 .back-link{font-size:12px;color:var(--text2);text-decoration:none;border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;background:var(--bg)}
 .back-link:hover{background:var(--bg2)}
+.clip-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:2px 5px;border-radius:var(--r);color:var(--text3);transition:color 0.15s;line-height:1}
+.clip-btn:hover{color:var(--text)}
+.clip-btn.has-attach{color:#185FA5}
+.clip-count{font-size:10px;font-weight:700;background:#185FA5;color:#fff;border-radius:8px;padding:1px 5px;margin-left:1px;vertical-align:top;display:inline-block;margin-top:1px}
+.attach-row td{background:var(--bg2);padding:12px 16px;border-bottom:2px solid var(--border)}
+.attach-panel{font-size:13px}
+.attach-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;min-height:16px}
+.attach-item{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:12px}
+.attach-item a{color:#185FA5;text-decoration:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.attach-item a:hover{text-decoration:underline}
+.attach-remove{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:0 2px;line-height:1;margin-left:2px}
+.attach-remove:hover{color:#b91c1c}
+.attach-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.file-label{font-family:var(--font);font-size:12px;border:1px solid var(--border2);border-radius:var(--r);padding:5px 12px;background:var(--bg);color:var(--text);cursor:pointer;white-space:nowrap;display:inline-block}
+.file-label:hover{background:var(--bg3)}
+.uploading{font-size:12px;color:var(--text2);font-style:italic}
+.divider{font-size:12px;color:var(--text3);padding:0 4px}
 </style>
 </head>
 <body>
@@ -125,13 +142,14 @@ tr.done-row .task-title{text-decoration:line-through}
       <table>
         <thead><tr>
           <th style="width:3%"></th>
-          <th style="width:25%">Task</th>
-          <th style="width:13%">Category</th>
+          <th style="width:23%">Task</th>
+          <th style="width:12%">Category</th>
           <th style="width:8%">Priority</th>
           <th style="width:9%">Due</th>
           <th style="width:9%">Day</th>
-          <th style="width:10%">Status</th>
-          <th style="width:23%"></th>
+          <th style="width:9%">Status</th>
+          <th style="width:3%">Files</th>
+          <th style="width:24%"></th>
         </tr></thead>
         <tbody id="task-body"><tr><td colspan="8" class="loading">Loading...</td></tr></tbody>
       </table>
@@ -158,7 +176,9 @@ firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 const taskRef=db.collection('tasks_roger');
 
-var tasks=[],editingId=null,toastTimer=null,weekOffset=0,currentTab='list';
+var tasks=[],editingId=null,openAttachId=null,toastTimer=null,weekOffset=0,currentTab='list';
+var CLOUD_NAME='dvlsztq7r';
+var CLOUD_PRESET='opus_tracker';
 var DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday'];
 var STATUSES=['Todo','In progress','Done','Blocked'];
 
@@ -199,9 +219,72 @@ function updateCatFilter(){
   if(v)sel.value=v;
 }
 
+async function uploadToCloudinary(file){
+  var fd=new FormData();fd.append('file',file);fd.append('upload_preset',CLOUD_PRESET);
+  var res=await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME+'/auto/upload',{method:'POST',body:fd});
+  var data=await res.json();
+  if(data.secure_url)return{name:file.name,url:data.secure_url,type:'file'};
+  throw new Error('Upload failed');
+}
+
+function toggleAttach(id){openAttachId=openAttachId===id?null:id;renderList();}
+
+async function removeAttachment(taskId,idx){
+  var t=tasks.find(function(x){return x.id===taskId;});if(!t)return;
+  t.attachments=t.attachments||[];t.attachments.splice(idx,1);
+  await saveTask(t);showToast('Attachment removed');
+}
+
+async function addLink(taskId){
+  var urlInp=document.getElementById('link-inp-'+taskId);
+  var url=(urlInp.value||'').trim();if(!url)return;
+  if(!/^https?:\/\//i.test(url))url='https://'+url;
+  var nameInp=document.getElementById('link-name-'+taskId);
+  var name=nameInp.value.trim()||url;
+  var t=tasks.find(function(x){return x.id===taskId;});if(!t)return;
+  t.attachments=t.attachments||[];t.attachments.push({type:'link',name:name,url:url});
+  await saveTask(t);urlInp.value='';nameInp.value='';showToast('Link added');
+}
+
+async function handleFileUpload(taskId,input){
+  var file=input.files[0];if(!file)return;
+  var lbl=document.getElementById('up-status-'+taskId);lbl.textContent='Uploading...';
+  try{
+    var att=await uploadToCloudinary(file);
+    var t=tasks.find(function(x){return x.id===taskId;});if(!t)return;
+    t.attachments=t.attachments||[];t.attachments.push(att);
+    await saveTask(t);lbl.textContent='';showToast(file.name+' uploaded');
+  }catch(e){lbl.textContent='Upload failed - please try again';console.error(e);}
+  input.value='';
+}
+
+function renderAttachPanel(t){
+  var atts=t.attachments||[];
+  var listHtml=atts.length===0?'<span style="font-size:12px;color:var(--text3)">No attachments yet.</span>':
+    atts.map(function(a,i){
+      var icon=a.type==='file'?'📄':'🔗';
+      return'<div class="attach-item">'+icon+' <a href="'+esc(a.url)+'" target="_blank">'+esc(a.name)+'</a>'+
+        '<button class="attach-remove" onclick="removeAttachment(\''+t.id+'\','+i+')" title="Remove">x</button></div>';
+    }).join('');
+  return'<div class="attach-panel">'+
+    '<div class="attach-list">'+listHtml+'</div>'+
+    '<div class="attach-add">'+
+      '<label class="file-label">📎 Upload file<input type="file" style="display:none" accept=".doc,.docx,.xls,.xlsx,.pdf,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg" onchange="handleFileUpload(\''+t.id+'\',this)"></label>'+
+      '<span id="up-status-'+t.id+'" class="uploading"></span>'+
+      '<span class="divider">or add a link:</span>'+
+      '<input id="link-name-'+t.id+'" type="text" placeholder="Label (optional)" style="width:140px">'+
+      '<input id="link-inp-'+t.id+'" type="text" placeholder="https://..." style="width:210px">'+
+      '<button class="btn" onclick="addLink(\''+t.id+'\')">Add link</button>'+
+    '</div></div>';
+}
+
 function load(){
   taskRef.orderBy('createdAt').onSnapshot(function(snap){
-    tasks=[];snap.forEach(function(doc){tasks.push(Object.assign({id:doc.id},doc.data()));});
+    tasks=[];snap.forEach(function(doc){
+      var d=doc.data();
+      if(!d.attachments)d.attachments=[];
+      tasks.push(Object.assign({id:doc.id},d));
+    });
     renderList();updateCatFilter();if(currentTab==='week')renderWeek();
   });
 }
@@ -223,6 +306,9 @@ function renderList(){
   filtered.sort(function(a,b){return(ord[a.priority]||1)-(ord[b.priority]||1)||((a.dueDate||'9').localeCompare(b.dueDate||'9'));});
   filtered.forEach(function(t){
     var isDone=(t.status||'Todo')==='Done';
+    var atts=t.attachments||[];
+    var hasAtts=atts.length>0;
+    var isOpen=openAttachId===t.id;
     if(editingId===t.id){
       var tr=document.createElement('tr');
       var sopts=STATUSES.map(function(s){return'<option>'+s+'</option>';}).join('');
@@ -234,7 +320,8 @@ function renderList(){
         '<td><input id="e-date" type="date" value="'+esc(t.dueDate||'')+'"></td>'+
         '<td><select id="e-day">'+dopts+'</select></td>'+
         '<td><select id="e-status">'+sopts+'</select></td>'+
-        '<td style="white-space:nowrap"><button class="btn btn-primary" onclick="saveEdit()">Save</button> <button class="btn" onclick="cancelEdit()">✕</button></td>';
+        '<td></td>'+
+        '<td style="white-space:nowrap"><button class="btn btn-primary" onclick="saveEdit()">Save</button> <button class="btn" onclick="cancelEdit()">x</button></td>';
       tbody.appendChild(tr);
       document.getElementById('e-pri').value=t.priority||'Medium';
       document.getElementById('e-status').value=t.status||'Todo';
@@ -251,8 +338,15 @@ function renderList(){
         '<td class="'+(od?'overdue':'')+'">'+fmtDate(t.dueDate)+'</td>'+
         '<td style="font-size:12px;color:var(--text2)">'+esc(dayLabel)+'</td>'+
         '<td><span class="sbadge st-'+esc((t.status||'Todo').replace(/ /g,'-'))+'">'+esc(t.status||'Todo')+'</span></td>'+
-        '<td style="white-space:nowrap"><button class="btn" onclick="startEdit(\''+t.id+'\')">Edit</button> <button class="btn btn-del" onclick="del(\''+t.id+'\')">✕</button></td>';
+        '<td style="text-align:center"><button class="clip-btn'+(hasAtts?' has-attach':'')+'" onclick="toggleAttach(\''+t.id+'\')" title="Attachments">📎'+(hasAtts?'<span class="clip-count">'+atts.length+'</span>':'')+'</button></td>'+
+        '<td style="white-space:nowrap"><button class="btn" onclick="startEdit(\''+t.id+'\')">Edit</button> <button class="btn btn-del" onclick="del(\''+t.id+'\')">x</button></td>';
       tbody.appendChild(tr);
+    }
+    if(isOpen){
+      var atr=document.createElement('tr');atr.className='attach-row';
+      var atd=document.createElement('td');atd.colSpan=9;
+      atd.innerHTML=renderAttachPanel(t);
+      atr.appendChild(atd);tbody.appendChild(atr);
     }
   });
 }
@@ -303,14 +397,14 @@ function cancelAdd(){document.getElementById('add-row').style.display='none';}
 
 async function saveNew(){
   var title=document.getElementById('f-title').value.trim();if(!title)return;
-  var t={id:uid(),title:title,cat:document.getElementById('f-cat').value.trim(),priority:document.getElementById('f-pri').value,dueDate:document.getElementById('f-date').value,scheduledDate:document.getElementById('f-day').value,notes:document.getElementById('f-notes').value.trim(),status:'Todo',createdAt:Date.now()};
+  var t={id:uid(),title:title,cat:document.getElementById('f-cat').value.trim(),priority:document.getElementById('f-pri').value,dueDate:document.getElementById('f-date').value,scheduledDate:document.getElementById('f-day').value,notes:document.getElementById('f-notes').value.trim(),status:'Todo',attachments:[],createdAt:Date.now()};
   await saveTask(t);
   ['f-title','f-cat','f-date','f-notes'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('f-day').value='';document.getElementById('f-pri').value='Medium';
   cancelAdd();showToast(title+' added');
 }
 
-function startEdit(id){editingId=id;renderList();}
+function startEdit(id){editingId=id;openAttachId=null;renderList();}
 function cancelEdit(){editingId=null;renderList();}
 
 async function saveEdit(){
@@ -327,7 +421,7 @@ async function saveEdit(){
 
 async function del(id){
   if(!confirm('Delete this task?'))return;
-  await deleteTask(id);if(editingId===id)editingId=null;
+  await deleteTask(id);if(editingId===id)editingId=null;if(openAttachId===id)openAttachId=null;
 }
 
 function prevWeek(){weekOffset--;renderWeek();}
