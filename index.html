@@ -106,11 +106,11 @@ tr.done-row .task-title{text-decoration:line-through}
   <div id="panel-list" class="panel active">
     <button class="btn btn-add" onclick="openAdd()">+ Add Task</button>
     <div class="add-form" id="add-row">
-      <div class="add-grid">
+      <div class="add-grid" style="grid-template-columns:2fr 1fr 1fr 1.5fr 1.5fr">
         <div><label class="form-label">Task</label><input id="f-title" type="text" placeholder="What needs doing?"></div>
         <div><label class="form-label">Category</label><input id="f-cat" type="text" placeholder="e.g. Business dev"></div>
         <div><label class="form-label">Priority</label><select id="f-pri"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
-        <div><label class="form-label">Due date</label><input id="f-date" type="date"></div>
+        <div><label class="form-label">Due date</label><input id="f-date" type="date" style="min-width:140px"></div>
         <div><label class="form-label">Day this week</label><select id="f-day"><option value="">- Unscheduled -</option></select></div>
       </div>
       <div style="margin-bottom:8px"><label class="form-label">Notes</label><textarea id="f-notes" rows="2" placeholder="Any additional detail..." style="resize:vertical"></textarea></div>
