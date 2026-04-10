@@ -376,7 +376,7 @@ function renderWeek(){
           '<div class="dt-title">'+esc(t.title)+'</div>'+
           '<div class="dt-meta"><span class="pri p-'+esc(t.priority||'Medium')+'" style="font-size:10px;padding:1px 6px">'+esc(t.priority||'Medium')+'</span>'+(t.dueDate?' · due '+fmtDate(t.dueDate):'')+'</div></div>';
       }).join('');
-    col.innerHTML='<div class="day-head"><div class="day-name">'+DAYS[i]+'</div><div class="day-date">'+d.getDate()+' '+d.toLocaleString('default',{month:'short'})+'</div></div><div class="day-body">'+tasksHtml+'</div>';
+    col.innerHTML='<div class="day-head"><div class="day-name">'+DAYS[i]+'</div></div><div class="day-body">'+tasksHtml+'</div>';
     grid.appendChild(col);
   });
 }
