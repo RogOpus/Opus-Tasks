@@ -93,9 +93,9 @@ tr.done-row .task-title{text-decoration:line-through}
   <header>
     <div>
       <h1>Task Planner</h1>
-      <div class="sub">Roger — personal view</div>
+      <div class="sub">Roger - personal view</div>
     </div>
-    <a class="back-link" href="https://chipper-paprenjak-906bc0.netlify.app">← Project Tracker</a>
+    <a class="back-link" href="https://rogopus.github.io/opus-tracker/">← Project Tracker</a>
   </header>
   <div id="toast"></div>
   <div class="tabs">
@@ -111,9 +111,9 @@ tr.done-row .task-title{text-decoration:line-through}
         <div><label class="form-label">Category</label><input id="f-cat" type="text" placeholder="e.g. Business dev"></div>
         <div><label class="form-label">Priority</label><select id="f-pri"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
         <div><label class="form-label">Due date</label><input id="f-date" type="date"></div>
-        <div><label class="form-label">Day this week</label><select id="f-day"><option value="">— Unscheduled —</option></select></div>
+        <div><label class="form-label">Day this week</label><select id="f-day"><option value="">- Unscheduled -</option></select></div>
       </div>
-      <div style="margin-bottom:8px"><label class="form-label">Notes</label><textarea id="f-notes" rows="2" placeholder="Any additional detail…" style="resize:vertical"></textarea></div>
+      <div style="margin-bottom:8px"><label class="form-label">Notes</label><textarea id="f-notes" rows="2" placeholder="Any additional detail..." style="resize:vertical"></textarea></div>
       <div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="saveNew()">Save</button><button class="btn" onclick="cancelAdd()">Cancel</button></div>
     </div>
     <div class="filters">
@@ -133,7 +133,7 @@ tr.done-row .task-title{text-decoration:line-through}
           <th style="width:10%">Status</th>
           <th style="width:23%"></th>
         </tr></thead>
-        <tbody id="task-body"><tr><td colspan="8" class="loading">Loading…</td></tr></tbody>
+        <tbody id="task-body"><tr><td colspan="8" class="loading">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -172,13 +172,13 @@ function getWeekDates(offset){
   return DAYS.map(function(_,i){var d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
 }
 function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function fmtDate(s){if(!s)return'—';var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0].slice(2);}
+function fmtDate(s){if(!s)return'-';var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0].slice(2);}
 function isToday(d){return dateStr(d)===dateStr(new Date());}
 function isOverdue(t){if(!t.dueDate||t.status==='Done')return false;return t.dueDate<dateStr(new Date());}
 
 function populateDaySelect(id){
   var s=document.getElementById(id);if(!s)return;
-  var v=s.value;s.innerHTML='<option value="">— Unscheduled —</option>';
+  var v=s.value;s.innerHTML='<option value="">- Unscheduled -</option>';
   getWeekDates(weekOffset).forEach(function(d,i){var o=document.createElement('option');o.value=dateStr(d);o.textContent=DAYS[i]+' '+d.getDate()+'/'+String(d.getMonth()+1).padStart(2,'0');s.appendChild(o);});
   if(v)s.value=v;
 }
@@ -218,7 +218,7 @@ function renderList(){
     if(fc&&(t.cat||'')!==fc)return false;
     return true;
   });
-  if(filtered.length===0){tbody.innerHTML='<tr><td colspan="8" class="empty">No tasks — add one above.</td></tr>';return;}
+  if(filtered.length===0){tbody.innerHTML='<tr><td colspan="8" class="empty">No tasks - add one above.</td></tr>';return;}
   var ord={High:0,Medium:1,Low:2};
   filtered.sort(function(a,b){return(ord[a.priority]||1)-(ord[b.priority]||1)||((a.dueDate||'9').localeCompare(b.dueDate||'9'));});
   filtered.forEach(function(t){
@@ -226,7 +226,7 @@ function renderList(){
     if(editingId===t.id){
       var tr=document.createElement('tr');
       var sopts=STATUSES.map(function(s){return'<option>'+s+'</option>';}).join('');
-      var dopts='<option value="">— Unscheduled —</option>'+getWeekDates(weekOffset).map(function(d,i){return'<option value="'+dateStr(d)+'">'+DAYS[i]+'</option>';}).join('');
+      var dopts='<option value="">- Unscheduled -</option>'+getWeekDates(weekOffset).map(function(d,i){return'<option value="'+dateStr(d)+'">'+DAYS[i]+'</option>';}).join('');
       tr.innerHTML='<td></td>'+
         '<td><input id="e-title" type="text" value="'+esc(t.title)+'"><textarea id="e-notes" rows="2" style="margin-top:4px;resize:vertical">'+esc(t.notes||'')+'</textarea></td>'+
         '<td><input id="e-cat" type="text" value="'+esc(t.cat||'')+'"></td>'+
@@ -242,11 +242,11 @@ function renderList(){
     } else {
       var tr=document.createElement('tr');if(isDone)tr.className='done-row';
       var od=isOverdue(t);
-      var dayLabel='—';
+      var dayLabel='-';
       if(t.scheduledDate){var di=getWeekDates(0).findIndex(function(d){return dateStr(d)===t.scheduledDate;});dayLabel=di>=0?DAYS[di]:fmtDate(t.scheduledDate);}
       tr.innerHTML='<td style="text-align:center"><input type="checkbox" '+(isDone?'checked':'')+' onchange="toggleDone(\''+t.id+'\')"></td>'+
         '<td><div class="task-title" style="font-weight:500">'+esc(t.title)+'</div>'+(t.notes?'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+esc(t.notes)+'</div>':'')+'</td>'+
-        '<td style="font-size:12px;color:var(--text2)">'+esc(t.cat||'—')+'</td>'+
+        '<td style="font-size:12px;color:var(--text2)">'+esc(t.cat||'-')+'</td>'+
         '<td><span class="pri p-'+esc(t.priority||'Medium')+'">'+esc(t.priority||'Medium')+'</span></td>'+
         '<td class="'+(od?'overdue':'')+'">'+fmtDate(t.dueDate)+'</td>'+
         '<td style="font-size:12px;color:var(--text2)">'+esc(dayLabel)+'</td>'+
@@ -259,7 +259,7 @@ function renderList(){
 
 function renderWeek(){
   var dates=getWeekDates(weekOffset);
-  document.getElementById('week-label').textContent='Week of '+dates[0].getDate()+'/'+String(dates[0].getMonth()+1).padStart(2,'0')+' – '+dates[4].getDate()+'/'+String(dates[4].getMonth()+1).padStart(2,'0')+'/'+dates[4].getFullYear();
+  document.getElementById('week-label').textContent='Week of '+dates[0].getDate()+'/'+String(dates[0].getMonth()+1).padStart(2,'0')+' - '+dates[4].getDate()+'/'+String(dates[4].getMonth()+1).padStart(2,'0')+'/'+dates[4].getFullYear();
   var unsched=tasks.filter(function(t){return!t.scheduledDate&&(t.status||'Todo')!=='Done';});
   var wrap=document.getElementById('unsched-wrap'),ulist=document.getElementById('unsched-list');
   if(unsched.length>0){
@@ -267,7 +267,7 @@ function renderWeek(){
     ulist.innerHTML=unsched.map(function(t){
       var dopts=dates.map(function(d,i){return'<option value="'+dateStr(d)+'">'+DAYS[i]+'</option>';}).join('');
       return'<div class="unsched-item"><span class="pri p-'+esc(t.priority||'Medium')+'">'+esc(t.priority||'Medium')+'</span>'+esc(t.title)+
-        '<select onchange="scheduleTask(\''+t.id+'\',this.value)" style="font-size:11px;padding:2px 5px;width:auto;border-radius:var(--r)"><option value="">Add to day…</option>'+dopts+'</select></div>';
+        '<select onchange="scheduleTask(\''+t.id+'\',this.value)" style="font-size:11px;padding:2px 5px;width:auto;border-radius:var(--r)"><option value="">Add to day...</option>'+dopts+'</select></div>';
     }).join('');
   } else wrap.style.display='none';
   var grid=document.getElementById('week-grid');grid.innerHTML='';
